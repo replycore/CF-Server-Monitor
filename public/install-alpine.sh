@@ -654,7 +654,7 @@ get_gpu_metrics() {
 
 get_http_ping() { 
     local rtt
-    rtt=$(curl -o /dev/null -s -m 3 --connect-timeout 2 -w "%{time_total}" "http://${1:-}" 2>/dev/null | awk '{printf "%.0f", $1*1000}')
+    rtt=$(curl -I -o /dev/null -s -m 3 --connect-timeout 2 -w "%{time_total}" "http://${1:-}" 2>/dev/null | awk '{printf "%.0f", $1*1000}')
     if [ -n "$rtt" ] && [ "$rtt" -gt 0 ] 2>/dev/null; then
         echo "$rtt"
     else
@@ -662,27 +662,50 @@ get_http_ping() {
     fi
 }
 
-get_tcp_ping() {
+get_time_ms() {
+    local ts
+    ts=$(date +%s%3N 2>/dev/null || true)
+    case "${ts}" in
+        ''|*[!0-9]*) ;;
+        ?????????????*) echo "${ts}"; return 0 ;;
+    esac
+
+    ts=$(date +%s%N 2>/dev/null || true)
+    case "${ts}" in
+        ''|*[!0-9]*) ;;
+        ????????????????*) echo "${ts%??????}"; return 0 ;;
+    esac
+
+    if command -v perl >/dev/null 2>&1; then
+        perl -MTime::HiRes=time -e 'printf "%.0f\n", time() * 1000' 2>/dev/null && return 0
+    fi
+    return 1
+}
+
+has_nc_zero_io() {
+    command -v nc >/dev/null 2>&1 || return 1
+    nc -h 2>&1 | grep -q -e '-z' || return 1
+    nc -h 2>&1 | grep -q -e '-w' || return 1
+}
+
+get_tcp_ping_nc() {
     local host="${1:-}"
     local port="${2:-443}"
-    local scheme="http"
-    local timing
+    local start end ms
 
-    if [ -z "${host}" ]; then
-        echo ""
-        return
+    start=$(get_time_ms) || return 1
+    if nc -z -w 2 "${host}" "${port}" >/dev/null 2>&1; then
+        end=$(get_time_ms) || return 1
+        ms=$((end - start))
+        [ "${ms}" -lt 1 ] && ms=1
+        echo "${ms}"
+        return 0
     fi
+    return 1
+}
 
-    if [ "${port}" = "443" ]; then
-        scheme="https"
-    fi
-
-    timing=$(curl -k -o /dev/null -s \
-        --connect-timeout 2 \
-        --max-time 3 \
-        -w "%{time_namelookup} %{time_connect}" \
-        "${scheme}://${host}:${port}/" 2>/dev/null || true)
-
+parse_curl_connect_ms() {
+    local timing="${1:-}"
     awk -v t="${timing}" 'BEGIN{
         split(t, a, " ")
         dns = a[1] + 0
@@ -695,6 +718,67 @@ get_tcp_ping() {
         if (ms < 1) ms = 1
         print ms
     }'
+}
+
+get_tcp_ping_curl_tcp() {
+    local host="${1:-}"
+    local port="${2:-443}"
+    local timing
+
+    if [ -z "${host}" ]; then
+        echo ""
+        return
+    fi
+
+    timing=$(curl -o /dev/null -s \
+        --connect-timeout 2 \
+        --max-time 2 \
+        -w "%{time_namelookup} %{time_connect}" \
+        "telnet://${host}:${port}" < /dev/null 2>/dev/null || true)
+
+    parse_curl_connect_ms "${timing}"
+}
+
+get_tcp_ping_curl_http_fallback() {
+    local host="${1:-}"
+    local port="${2:-443}"
+    local scheme="http"
+    local timing
+
+    [ -z "${host}" ] && { echo ""; return; }
+    [ "${port}" = "443" ] && scheme="https"
+
+    timing=$(curl -I -k -o /dev/null -s \
+        --connect-timeout 2 \
+        --max-time 3 \
+        -w "%{time_namelookup} %{time_connect}" \
+        "${scheme}://${host}:${port}/" 2>/dev/null || true)
+
+    parse_curl_connect_ms "${timing}"
+}
+
+get_tcp_ping() {
+    local host="${1:-}"
+    local port="${2:-443}"
+    local rtt
+
+    if [ -z "${host}" ]; then
+        echo ""
+        return
+    fi
+
+    if has_nc_zero_io && get_time_ms >/dev/null 2>&1; then
+        get_tcp_ping_nc "${host}" "${port}" || echo ""
+        return
+    fi
+
+    rtt=$(get_tcp_ping_curl_tcp "${host}" "${port}")
+    if [ -n "${rtt}" ]; then
+        echo "${rtt}"
+        return
+    fi
+
+    get_tcp_ping_curl_http_fallback "${host}" "${port}"
 }
 
 get_ping() {
@@ -717,6 +801,15 @@ get_packet_loss() {
         return
     fi
 
+    # 优先使用 ICMP ping 测量真实丢包率
+    if command -v ping >/dev/null 2>&1; then
+        local received
+        received=$(ping -c "$count" -W 2 "$host" 2>/dev/null | grep -c "icmp_seq")
+        echo $(( (count - received) * 100 / count ))
+        return
+    fi
+
+    # fallback: HTTP/TCP 连通性检测
     local ok=0
     local i=1
     while [ "$i" -le "$count" ]; do

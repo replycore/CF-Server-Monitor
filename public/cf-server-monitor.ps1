@@ -476,7 +476,7 @@ function Get-HttpPing {
         $sw = [System.Diagnostics.Stopwatch]::StartNew()
         $req = [System.Net.HttpWebRequest]::Create("http://$TargetHost")
         $req.Timeout = 1500
-        $req.Method = "GET"
+        $req.Method = "HEAD"
         $req.AllowAutoRedirect = $false
         try { $resp = $req.GetResponse(); $resp.Close() } catch {}
         $sw.Stop()
