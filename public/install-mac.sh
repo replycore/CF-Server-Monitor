@@ -84,15 +84,15 @@ check_dependencies() {
     step "检测系统依赖..."
     local deps="curl awk grep sed df ps netstat vm_stat sysctl"
     local missing=""
-    for cmd in $deps; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            missing="$missing $cmd"
+    for cmd in ${deps}; do
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            missing="${missing} ${cmd}"
         else
-            info "  $cmd ✓"
+            info "  ${cmd} ✓"
         fi
     done
-    if [ -n "$missing" ]; then
-        error "缺少必要的系统命令: $missing"
+    if [ -n "${missing}" ]; then
+        error "缺少必要的系统命令: ${missing}"
     fi
     info "所有依赖检测通过"
 

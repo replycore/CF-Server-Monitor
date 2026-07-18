@@ -140,9 +140,9 @@ install_deps() {
         error "依赖包安装失败，请检查网络或手动执行: apk add $required_pkgs"
 
     local required_cmds="bash curl awk grep sed ps df ss nproc pgrep pkill"
-    for cmd in $required_cmds; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            error "缺少必要依赖: $cmd，请手动安装后重试。"
+    for cmd in ${required_cmds}; do
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            error "缺少必要依赖: ${cmd}，请手动安装后重试。"
         fi
     done
 

@@ -133,20 +133,20 @@ detect_os() {
 
 install_deps() {
     step "检查系统依赖组件..."
-    local required_cmds=("curl" "awk" "grep" "sed" "ps" "df" "ping" "nc")
+    local required_cmds="curl awk grep sed ps df ping nc"
 
-    for cmd in "${required_cmds[@]}"; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            warn "缺少必要依赖: $cmd，正在尝试自动安装..."
-            local pkg="$cmd"
-            if [ "$cmd" = "ping" ]; then
+    for cmd in ${required_cmds}; do
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            warn "缺少必要依赖: ${cmd}，正在尝试自动安装..."
+            local pkg="${cmd}"
+            if [ "${cmd}" = "ping" ]; then
                 if [ "${PKG_MGR:-apt-get}" = "apt-get" ]; then
                     pkg="iputils-ping"
                 else
                     pkg="iputils"
                 fi
             fi
-            if [ "$cmd" = "nc" ]; then
+            if [ "${cmd}" = "nc" ]; then
                 case "${PKG_MGR:-apt-get}" in
                     apt-get) pkg="netcat-openbsd" ;;
                     yum)     pkg="nmap-ncat" ;;
@@ -154,15 +154,15 @@ install_deps() {
                 esac
             fi
             case "${PKG_MGR:-apt-get}" in
-                apt-get) apt-get update -qq && apt-get install -y -qq "$pkg" >/dev/null 2>&1 || true ;;
-                yum)     yum install -y -q "$pkg" >/dev/null 2>&1 || true ;;
-                apk)     apk add --no-cache --quiet "$pkg" >/dev/null 2>&1 || true ;;
-                opkg)    opkg install "$pkg" >/dev/null 2>&1 || true ;;
-                *)       warn "未知的包管理器: ${PKG_MGR:-apt-get}，无法自动安装 $pkg" ;;
+                apt-get) apt-get update -qq && apt-get install -y -qq "${pkg}" >/dev/null 2>&1 || true ;;
+                yum)     yum install -y -q "${pkg}" >/dev/null 2>&1 || true ;;
+                apk)     apk add --no-cache --quiet "${pkg}" >/dev/null 2>&1 || true ;;
+                opkg)    opkg install "${pkg}" >/dev/null 2>&1 || true ;;
+                *)       warn "未知的包管理器: ${PKG_MGR:-apt-get}，无法自动安装 ${pkg}" ;;
             esac
         fi
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            error "无法自动安装依赖 [$cmd]，请手动安装后重试。"
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            error "无法自动安装依赖 [${cmd}]，请手动安装后重试。"
         fi
     done
 

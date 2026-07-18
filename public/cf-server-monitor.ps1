@@ -390,10 +390,33 @@ function Get-SwapInfo {
 
 function Get-DiskInfo {
     try {
-        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-        $totalMB = [math]::Round($disk.Size / 1024 / 1024)
-        $freeMB = [math]::Round($disk.FreeSpace / 1024 / 1024)
-        $usedMB = $totalMB - $freeMB
+        $disks = @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue)
+        if (-not $disks -or $disks.Count -eq 0) {
+            $disks = @(Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Where-Object {
+                $_.Root -match '^[A-Za-z]:\\$' -and $null -ne $_.Used -and $null -ne $_.Free
+            } | ForEach-Object {
+                [PSCustomObject]@{
+                    Size = ([int64]$_.Used + [int64]$_.Free)
+                    FreeSpace = [int64]$_.Free
+                }
+            })
+        }
+
+        $totalBytes = [int64]0
+        $freeBytes = [int64]0
+        foreach ($disk in $disks) {
+            if ($null -eq $disk.Size -or $null -eq $disk.FreeSpace) { continue }
+            $size = [int64]$disk.Size
+            $free = [int64]$disk.FreeSpace
+            if ($size -le 0 -or $free -lt 0) { continue }
+            $totalBytes += $size
+            $freeBytes += $free
+        }
+
+        if ($totalBytes -le 0) { return @{ total = 0; used = 0 } }
+        $totalMB = [math]::Round($totalBytes / 1024 / 1024)
+        $freeMB = [math]::Round($freeBytes / 1024 / 1024)
+        $usedMB = [math]::Max($totalMB - $freeMB, 0)
         return @{ total = $totalMB; used = $usedMB }
     } catch {
         return @{ total = 0; used = 0 }

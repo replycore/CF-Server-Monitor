@@ -194,20 +194,20 @@ install_deps() {
             opkg install $optional_ping_pkg >/dev/null 2>&1 || true
             ;;
         *)
-            error "未知的包管理器: $PKG_MGR"
+            error "未知的包管理器: ${PKG_MGR}"
             ;;
     esac
 
     required_cmds="curl awk grep sed"
-    for cmd in $required_cmds; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            warn "缺少依赖: $cmd，某些功能可能不可用。"
+    for cmd in ${required_cmds}; do
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            warn "缺少依赖: ${cmd}，某些功能可能不可用。"
         fi
     done
 
     for cmd in pgrep pkill ss; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            warn "缺少可选依赖: $cmd（不影响核心监控功能）"
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            warn "缺少可选依赖: ${cmd}（不影响核心监控功能）"
         fi
     done
 
