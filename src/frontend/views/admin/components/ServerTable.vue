@@ -56,10 +56,14 @@
             <td class="table-center-cell"><input type="checkbox" class="server-checkbox" :value="server.id" :checked="selectedServers.includes(server.id)" @change="$emit('toggle-server', server.id)"></td>
             <td>
               <div class="server-info">
-                <span v-if="server.region && server.region !== 'xx'">
+                <span v-if="server.region && server.region !== 'xx'" class="country-os-icons">
                   <img :src="getPublicAssetUrl('flags/' + getFlagRegionCode(server.region) + '.svg')" :alt="server.region" class="flag-img">
+                  <OsIcon :os="server.os" />
                 </span>
-                <span v-else>🏳️</span>
+                <span v-else class="country-os-icons">
+                  <span class="flag-fallback">🏳️</span>
+                  <OsIcon :os="server.os" />
+                </span>
                 <router-link :to="'/server/' + server.id + (selectedApiIndex ? '?apiIndex=' + selectedApiIndex : '')" class="server-name-link">{{ server.name }}</router-link>
               </div>
             </td>
@@ -108,6 +112,7 @@
 <script setup>
 import { getFlagRegionCode, formatBytes } from '../../../utils/api'
 import { getPublicAssetUrl } from '../../../utils/config'
+import OsIcon from '../../../components/OsIcon.vue'
 
 const props = defineProps({
   trans: { type: Object, required: true },
