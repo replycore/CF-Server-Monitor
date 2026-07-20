@@ -269,8 +269,7 @@ export default {
           turnstile_login_enabled: turnstileEnabled || turnstileLoginEnabled,
           turnstile_site_key: sys.turnstile_site_key || '',
           site_title: appearanceOptions.site_title || '',
-          csp_static: appearanceOptions.csp_static || '',
-          csp_api: appearanceOptions.csp_api || '',
+          display_mode: appearanceOptions.display_mode || 'bar',
           verified: verified,
           turnstile_verified: turnstileVerified,
           show_long_history: sys.show_long_history === 'true'
@@ -281,7 +280,7 @@ export default {
         return handleServerAPI(request, env, sys);
       }},
       { method: 'GET', path: '/api/servers', handler: async () => {
-        await ensureSiteSettings();
+        await ensureFullSettings();
         return handleServersAPI(request, env, sys);
       }},
       { method: 'GET', path: '/api/ws', handler: async () => handleWebSocketUpgrade(request, env) },
