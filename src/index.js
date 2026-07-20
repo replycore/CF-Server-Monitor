@@ -269,7 +269,10 @@ export default {
           turnstile_login_enabled: turnstileEnabled || turnstileLoginEnabled,
           turnstile_site_key: sys.turnstile_site_key || '',
           site_title: appearanceOptions.site_title || '',
+          csp_static: appearanceOptions.csp_static || '',
+          csp_api: appearanceOptions.csp_api || '',
           display_mode: appearanceOptions.display_mode || 'bar',
+          theme_options: appearanceOptions.theme_options || {},
           verified: verified,
           turnstile_verified: turnstileVerified,
           show_long_history: sys.show_long_history === 'true'
