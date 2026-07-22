@@ -1,6 +1,7 @@
 import { getLatestMetricsForAllServers } from '../database/schema.js';
-import { getAllServers } from '../utils/cache.js';
-import { loadSiteSettings, saveSiteOptions, debug } from '../utils/settings.js';
+import { clearServersListCache, getAllServers } from '../utils/cache.js';
+import { loadSiteSettings, debug } from '../utils/settings.js';
+import { detectBillingCycle, normalizeBillingCycle, renewExpireDateIfNeeded } from '../utils/serverBilling.js';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -257,17 +258,30 @@ export async function checkOfflineNodes(db) {
 export async function checkExpiringServers(db) {
   const siteSettings = await loadSiteSettings(db);
 
-  if (siteSettings.expire_reminder !== 'true' || !siteSettings.tg_bot_token) {
-    return;
-  }
   try {
     const allServers = await getAllServers(db);
     const now = Date.now();
     const REMINDER_DAYS = 7;
     const expiringServers = [];
+    const shouldNotify = siteSettings.expire_reminder === 'true' && !!siteSettings.tg_bot_token;
+    let hasRenewedServers = false;
 
     for (const s of allServers) {
       if (!s.expire_date) continue;
+
+      const billingCycle = normalizeBillingCycle(detectBillingCycle(s.price) || s.billing_cycle);
+      const renewal = renewExpireDateIfNeeded(s.expire_date, billingCycle, s.auto_renewal, now, 1);
+      if (renewal.renewed) {
+        await db.prepare(
+          'UPDATE servers SET expire_date = ?, billing_cycle = ? WHERE id = ?'
+        ).bind(renewal.expire_date, billingCycle, s.id).run();
+        s.expire_date = renewal.expire_date;
+        s.billing_cycle = billingCycle;
+        hasRenewedServers = true;
+        debug(`[Cron] 服务器 ${s.name} 已自动续费，到期日期更新为 ${s.expire_date}`);
+      }
+
+      if (!shouldNotify) continue;
 
       const expTime = new Date(s.expire_date).getTime();
       if (isNaN(expTime)) continue;
@@ -280,6 +294,10 @@ export async function checkExpiringServers(db) {
       if (days > 0 && days <= REMINDER_DAYS) {
         expiringServers.push({ name: s.name, expire_date: s.expire_date, days });
       }
+    }
+
+    if (hasRenewedServers) {
+      clearServersListCache();
     }
 
     if (expiringServers.length > 0) {
