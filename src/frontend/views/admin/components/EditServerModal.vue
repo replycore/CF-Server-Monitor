@@ -143,8 +143,7 @@
           <div class="checkbox-item no-margin">
             <input type="checkbox" v-model="editForm.is_hidden">
             <label>
-              <b>{{ trans.hideFromPublic }}</b><br>
-              <span class="text-xs text-muted">{{ trans.hideDesc }}</span>
+              <b>{{ trans.hideFromPublic }}</b>
             </label>
           </div>
         </div>
@@ -153,8 +152,7 @@
           <div class="checkbox-item no-margin">
             <input type="checkbox" v-model="editForm.offline_notify_disabled">
             <label>
-              <b>{{ trans.disableOfflineNotify }}</b><br>
-              <span class="text-xs text-muted">{{ trans.disableOfflineNotifyDesc }}</span>
+              <b>{{ trans.disableOfflineNotify }}</b>
             </label>
           </div>
         </div>
